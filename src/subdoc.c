@@ -102,7 +102,13 @@ xar_subdoc_t xar_subdoc_find(xar_t x, const char *name)
 	return NULL;
 }
 
-int32_t xar_subdoc_copyout(xar_subdoc_t s, unsigned char **ret, unsigned int *size) {
+
+static int32_t xar_subdoc_copyout_internal(
+	xar_subdoc_t s,
+	unsigned char **ret,
+	unsigned int *size,
+	int wrapped
+) {
 	xmlBufferPtr buf;
 	xmlTextWriterPtr writer;
 
@@ -117,7 +123,7 @@ int32_t xar_subdoc_copyout(xar_subdoc_t s, unsigned char **ret, unsigned int *si
 	}
 
 	xmlTextWriterSetIndent(writer, 4);
-	xar_subdoc_serialize(s, writer, 1);
+	xar_subdoc_serialize(s, writer, wrapped);
 
 	xmlTextWriterEndDocument(writer);
 	xmlFreeTextWriter(writer);
@@ -136,12 +142,18 @@ int32_t xar_subdoc_copyout(xar_subdoc_t s, unsigned char **ret, unsigned int *si
 	return 0;
 }
 
+int32_t xar_subdoc_copyout(xar_subdoc_t s, unsigned char **ret, unsigned int *size) {
+	return xar_subdoc_copyout_internal(s, ret, size, 0);
+}
+
+int32_t xar_subdoc_copyout_wrapped(xar_subdoc_t s, unsigned char **ret, unsigned int *size) {
+	return xar_subdoc_copyout_internal(s, ret, size, 1);
+}
+
 int32_t xar_subdoc_copyin(xar_subdoc_t s, const unsigned char *buf, unsigned int len) {
 	xmlTextReaderPtr reader;
 
 	reader = xmlReaderForMemory((const char *)buf, len, NULL, NULL, 0);
-
-    xmlTextReaderRead(reader);
 
 	if( !reader )
 		return -1;
@@ -150,6 +162,46 @@ int32_t xar_subdoc_copyin(xar_subdoc_t s, const unsigned char *buf, unsigned int
 	xmlFreeTextReader(reader);
 	return 0;
 }
+
+int32_t xar_subdoc_copyin_wrapped(xar_t x, const unsigned char *buf, unsigned int len) {
+    xmlTextReaderPtr reader;
+
+    reader = xmlReaderForMemory((const char *)buf, len, NULL, NULL, 0);
+
+    if( !reader )
+        return -1;
+
+    if (xmlTextReaderRead(reader) != 1
+        || xmlTextReaderNodeType(reader) != XML_READER_TYPE_ELEMENT
+    ) {
+        /* xml document should have at least one element node */
+        return  -1;
+    }
+
+    const char *subdocName = 0;
+
+    int attrResult = xmlTextReaderMoveToFirstAttribute(reader);
+    while (attrResult == 1) {
+        const char *attrName = (const char *) xmlTextReaderConstLocalName(reader);
+        if (strcmp(attrName, "subdoc_name") == 0) {
+            subdocName = (const char *)xmlTextReaderConstValue(reader);
+            break;
+        }
+        attrResult = xmlTextReaderMoveToNextAttribute(reader);
+    }
+
+    if (!subdocName) {
+        /* xml document name was not detected */
+        return -1;
+    }
+
+    xar_subdoc_t subdoc = xar_subdoc_new(x, subdocName);
+
+    xar_subdoc_unserialize(subdoc, reader);
+    xmlFreeTextReader(reader);
+    return 0;
+}
+
 
 /* xar_subdoc_serialize
  * s: a subdoc structure allocated and initialized by xar_subdoc_new()

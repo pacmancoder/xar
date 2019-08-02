@@ -274,8 +274,9 @@ static int32_t eacls(xar_t x, xar_file_t f, const char *file) {
 	return 0;
 }
 
-#ifdef HAVE_STRUCT_STAT_ST_FLAGS
 #define XAR_FLAG_FORK "flags"
+
+#ifdef HAVE_STRUCT_STAT_ST_FLAGS
 static void x_addflag(xar_file_t f, const char *name) {
 	char opt[1024];
 	memset(opt, 0, sizeof(opt));

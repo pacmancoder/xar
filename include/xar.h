@@ -180,6 +180,17 @@ int32_t xar_prop_set(xar_file_t f, const char *key, const char *value);
 int32_t xar_prop_create(xar_file_t f, const char *key, const char *value);
 int32_t xar_prop_get(xar_file_t f, const char *key, const char **value);
 
+/**
+ * writes property data in format which allows direct replication of it
+ * in other files using xar_prop_copyin_wrapped
+ */
+int32_t xar_prop_copyout_wrapped(xar_file_t file, const char* propName, unsigned char **dataRef, unsigned int *sizeRef);
+
+/**
+ * replicates property in the specified file
+ */
+int32_t xar_prop_copyin_wrapped(xar_file_t file, const unsigned char *data, unsigned int size);
+
 xar_iter_t xar_iter_new(void);
 void xar_iter_free(xar_iter_t i);
 
@@ -206,6 +217,17 @@ const char *xar_subdoc_name(xar_subdoc_t s);
 int32_t xar_subdoc_copyout(xar_subdoc_t s, unsigned char **, unsigned int *);
 int32_t xar_subdoc_copyin(xar_subdoc_t s, const unsigned char *, unsigned int);
 void xar_subdoc_remove(xar_subdoc_t s);
+
+/**
+ * writes subdoc data in format which allows direct replication of it
+ * in other archives using xar_subdoc_copyin_wrapped
+ */
+int32_t xar_subdoc_copyout_wrapped(xar_subdoc_t s, unsigned char **dataRef, unsigned int *sizeRef);
+
+/**
+ * replicates subdocument in the specified archive
+ */
+int32_t xar_subdoc_copyin_wrapped(xar_t s, const unsigned char *data, unsigned int size);
 
 /* signature api for adding various signature types */
 xar_signature_t xar_signature_new(xar_t x,const char *type, int32_t length, xar_signer_callback callback, void *callback_context);

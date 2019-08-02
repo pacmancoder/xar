@@ -914,7 +914,7 @@ xar_file_t xar_file_find(xar_file_t f, const char *path) {
  * Summary: recursively serializes the property passed to it, including
  * children, siblings, attributes, etc.
  */
-void xar_prop_serialize(xar_prop_t p, xmlTextWriterPtr writer) {
+static void xar_prop_serialize_internal(xar_prop_t p, xmlTextWriterPtr writer, int serializeArray) {
 	xar_prop_t i;
 	xar_attr_t a;
 
@@ -954,35 +954,108 @@ void xar_prop_serialize(xar_prop_t p, xmlTextWriterPtr writer) {
 		}
 		xmlTextWriterEndElement(writer);
 
-		i = XAR_PROP(i)->next;
+		if (serializeArray)
+		{
+			i = XAR_PROP(i)->next;
+		} else {
+		    /* stop after first node */
+		    i = 0;
+		}
 	} while(i);
 }
 
-void xar_prop_serialize_wrapped(xar_prop_t p, xmlTextWriterPtr writer) {
+void xar_prop_serialize(xar_prop_t p, xmlTextWriterPtr writer) {
+    xar_prop_serialize_internal(p, writer, 1);
+}
 
-    xmlTextWriterStartElementNS(
-        writer,
-        BAD_CAST(p->prefix),
-        BAD_CAST(p->key),
-        BAD_CAST(p->ns)
-    );
+void xar_prop_serialize_node(xar_prop_t p, xmlTextWriterPtr writer) {
+    xar_prop_serialize_internal(p, writer, 0);
+}
 
-    if(p->value) {
-        xmlTextWriterWriteString(writer, BAD_CAST(p->value));
+int32_t xar_prop_copyout_wrapped(
+    xar_file_t file,
+    const char* propName,
+    unsigned char **dataRef,
+    unsigned int *sizeRef
+){
+    xmlBufferPtr buf;
+    xmlTextWriterPtr writer;
+
+    if (dataRef == 0) {
+        /* output is null */
+        return -1;
     }
 
-    xar_prop_serialize(p->children, writer);
+    xar_prop_t prop = xar_prop_pfirst(file);
+    if (!prop) {
+        /* no properties */
+        return -1;
+    }
 
-    xmlTextWriterEndElement(writer);
+    prop = xar_prop_find(prop, propName);
+    if (!prop) {
+        /* property not found */
+        return -1;
+    }
+
+    buf = xmlBufferCreate();
+    if(!buf) {
+        /* can't create buffer */
+        return -1;
+    }
+
+    writer = xmlNewTextWriterMemory(buf, 0);
+    if(!writer) {
+        xmlBufferFree(buf);
+        return -1;
+    }
+
+    xmlTextWriterSetIndent(writer, 4);
+    xar_prop_serialize_node(prop, writer);
+
+    xmlTextWriterEndDocument(writer);
+    xmlFreeTextWriter(writer);
+
+    if( sizeRef != 0 )
+        *sizeRef = buf->use;
+
+    *dataRef = malloc(buf->use);
+    if( *dataRef == 0 ) {
+        /* can't allocate */
+        xmlBufferFree(buf);
+        return -1;
+    }
+
+    memcpy(*dataRef, buf->content, *sizeRef);
+    xmlBufferFree(buf);
+    return 0;
 }
 
-int32_t xar_prop_unserialize_wrapped(xar_file_t f, xar_prop_t parent, xmlTextReaderPtr reader)
-{
-    xmlTextReaderRead(reader);
+int32_t xar_prop_copyin_wrapped(
+    xar_file_t file,
+    const unsigned char *data,
+    unsigned int size
+) {
+    xmlTextReaderPtr reader;
 
-    return xar_prop_unserialize(f, parent, reader);
+    reader = xmlReaderForMemory((const char *)data, size, 0, 0, 0);
+
+    if( !reader ) {
+        /* can't create reader */
+        return -1;
+    }
+
+    if (xmlTextReaderRead(reader) != 1){
+        /* can't read root node */
+        return -1;
+    }
+
+    int32_t result = xar_prop_unserialize(file, 0, reader);
+
+    xmlFreeTextReader(reader);
+
+    return result;
 }
-
 
 /* xar_file_serialize
  * f: file to serialize

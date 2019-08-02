@@ -19,3 +19,11 @@ target_include_directories(xar PUBLIC ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(xar ${OPENSSL_CRYPTO_LIBRARY})
 
 target_link_libraries(xar z bz2)
+
+if(UNIX AND NOT APPLE)
+    target_link_libraries(xar acl)
+endif()
+
+add_executable(xar-app app/xar.c)
+set_target_properties(xar-app PROPERTIES OUTPUT_NAME "xar")
+target_link_libraries(xar-app xar)
