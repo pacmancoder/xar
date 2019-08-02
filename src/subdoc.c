@@ -117,14 +117,14 @@ int32_t xar_subdoc_copyout(xar_subdoc_t s, unsigned char **ret, unsigned int *si
 	}
 
 	xmlTextWriterSetIndent(writer, 4);
-	xar_subdoc_serialize(s, writer, 0);
+	xar_subdoc_serialize(s, writer, 1);
 
 	xmlTextWriterEndDocument(writer);
 	xmlFreeTextWriter(writer);
 
 	if( size != NULL )
 		*size = buf->use;
-	*ret = malloc(buf->size);
+	*ret = malloc(buf->use);
 	if( *ret == NULL ) {
 		xmlBufferFree(buf);
 		return -1;
@@ -140,6 +140,9 @@ int32_t xar_subdoc_copyin(xar_subdoc_t s, const unsigned char *buf, unsigned int
 	xmlTextReaderPtr reader;
 
 	reader = xmlReaderForMemory((const char *)buf, len, NULL, NULL, 0);
+
+    xmlTextReaderRead(reader);
+
 	if( !reader )
 		return -1;
 
@@ -165,7 +168,7 @@ void xar_subdoc_serialize(xar_subdoc_t s, xmlTextWriterPtr writer, int wrap) {
 			xmlTextWriterWriteString(writer, BAD_CAST(XAR_SUBDOC(s)->value));
 	}
 	xar_prop_serialize(XAR_SUBDOC(s)->props, writer);
-	xmlTextWriterEndElement(writer);
+    xmlTextWriterEndElement(writer);
 }
 
 void xar_subdoc_remove(xar_subdoc_t s) {

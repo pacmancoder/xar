@@ -958,6 +958,32 @@ void xar_prop_serialize(xar_prop_t p, xmlTextWriterPtr writer) {
 	} while(i);
 }
 
+void xar_prop_serialize_wrapped(xar_prop_t p, xmlTextWriterPtr writer) {
+
+    xmlTextWriterStartElementNS(
+        writer,
+        BAD_CAST(p->prefix),
+        BAD_CAST(p->key),
+        BAD_CAST(p->ns)
+    );
+
+    if(p->value) {
+        xmlTextWriterWriteString(writer, BAD_CAST(p->value));
+    }
+
+    xar_prop_serialize(p->children, writer);
+
+    xmlTextWriterEndElement(writer);
+}
+
+int32_t xar_prop_unserialize_wrapped(xar_file_t f, xar_prop_t parent, xmlTextReaderPtr reader)
+{
+    xmlTextReaderRead(reader);
+
+    return xar_prop_unserialize(f, parent, reader);
+}
+
+
 /* xar_file_serialize
  * f: file to serialize
  * writer: the xmlTextWriterPtr allocated by xmlNewTextWriter*()

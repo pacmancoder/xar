@@ -42,8 +42,8 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
-#include <libxml/xmlwriter.h>
 #include <libxml/xmlreader.h>
+#include <libxml/xmlwriter.h>
 
 struct __xar_attr_t {
 	const char *key;

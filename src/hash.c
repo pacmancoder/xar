@@ -41,12 +41,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <zlib.h>
-#ifdef __APPLE__
-#include <CommonCrypto/CommonDigest.h>
-#include <CommonCrypto/CommonDigestSPI.h>
-#else
+//#ifdef __APPLE__
+//#include <CommonCrypto/CommonDigest.h>
+//#include <CommonCrypto/CommonDigestSPI.h>
+//#else
 #include <openssl/evp.h>
-#endif
+//#endif
 
 #include "xar.h"
 #include "hash.h"
@@ -58,48 +58,12 @@
 
 #pragma mark Hash Wrapper Object
 
-#ifdef __APPLE__
-
-CCDigestRef digestRef_from_name(const char* name, unsigned int *outHashSize) {
-    CCDigestRef result = NULL;
-    
-    if (NULL != outHashSize)
-        *outHashSize = 0;
-    
-	if (0 == strcasecmp(name, "sha512")) {
-        result = CCDigestCreate(kCCDigestSHA512);
-        if (NULL != outHashSize)
-            *outHashSize = CC_SHA512_DIGEST_LENGTH;
-    } else if (0 == strcasecmp(name, "sha256")) {
-        result = CCDigestCreate(kCCDigestSHA256);
-        if (NULL != outHashSize)
-            *outHashSize = CC_SHA256_DIGEST_LENGTH;
-    } else if (0 == strcasecmp(name, "sha") || !strcasecmp(name, "sha1")) {
-        result = CCDigestCreate(kCCDigestSHA1);
-        if (NULL != outHashSize)
-            *outHashSize = CC_SHA1_DIGEST_LENGTH;
-#ifdef XAR_SUPPORT_MD5
-    } else if (0 == strcasecmp(name, "md5")) {
-        result = CCDigestCreate(kCCDigestMD5);
-        if (NULL != outHashSize)
-            *outHashSize = CC_MD5_DIGEST_LENGTH;
-#endif // XAR_SUPPORT_MD5
-    }
-	
-    return result;
-}
-#endif // __APPLE__
-
 
 struct __xar_hash_t {
 	const char *digest_name;
 	void *context;
-#ifdef __APPLE__
-	CCDigestRef digest;
-#else
 	EVP_MD_CTX digest;
 	const EVP_MD *type;
-#endif
 	unsigned int length;
 };
 
@@ -112,14 +76,10 @@ xar_hash_t xar_hash_new(const char *digest_name, void *context) {
 	
 	if( context )
 		HASH_CTX(hash)->context = context;
-	
-#ifdef __APPLE__
-	HASH_CTX(hash)->digest = digestRef_from_name(digest_name, &HASH_CTX(hash)->length);
-#else
+
 	OpenSSL_add_all_digests();
 	HASH_CTX(hash)->type = EVP_get_digestbyname(digest_name);
 	EVP_DigestInit(&HASH_CTX(hash)->digest, HASH_CTX(hash)->type);
-#endif
 	
 	HASH_CTX(hash)->digest_name = strdup(digest_name);
 	
@@ -135,29 +95,16 @@ const char *xar_hash_get_digest_name(xar_hash_t hash) {
 }
 
 void xar_hash_update(xar_hash_t hash, void *buffer, size_t nbyte) {
-#ifdef __APPLE__
-	CCDigestUpdate(HASH_CTX(hash)->digest, buffer, nbyte);
-#else
 	EVP_DigestUpdate(&HASH_CTX(hash)->digest, buffer, nbyte);
-#endif
 }
 
 void *xar_hash_finish(xar_hash_t hash, size_t *nbyte) {
-#ifdef __APPLE__
-	void *buffer = calloc(1, CC_SHA512_DIGEST_LENGTH); // current biggest digest size  This is what OpenSSL uses
-#else
 	void *buffer = calloc(1, EVP_MAX_MD_SIZE);
-#endif
 	if( ! buffer )
 		return NULL;
-	
-#ifdef __APPLE__
-	CCDigestFinal(HASH_CTX(hash)->digest, buffer);
-	CCDigestDestroy(HASH_CTX(hash)->digest);
-#else
+
 	EVP_DigestFinal(&HASH_CTX(hash)->digest, buffer, &HASH_CTX(hash)->length);
-#endif
-	
+
 	*nbyte = HASH_CTX(hash)->length;
 	free((void *)HASH_CTX(hash)->digest_name);
 	free((void *)hash);
