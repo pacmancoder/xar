@@ -1,4 +1,4 @@
-# Pacmancoder's xar archiver fork
+# xar archiver fork
 Personal xar fork for research purposes
 
 ## Features
